@@ -1,1 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Slime Volleyball Lobby</title>
+</head>
+<body>
+  <h1>Join a Game</h1>
+  <input id="roomCode" placeholder="Enter room code">
+  <button onclick="joinRoom()">Join</button>
+  <p id="status"></p>
 
+  <script>
+    function joinRoom() {
+      const code = document.getElementById("roomCode").value;
+      window.location.href = "/game.html?room=" + code;
+    }
+  </script>
+</body>
+</html>
