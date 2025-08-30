@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Slime Volleyball Game</title>
+  <style> canvas { background: skyblue; display: block; margin: auto; } </style>
+</head>
+<body>
+  <canvas id="game" width="600" height="400"></canvas>
+  <button id="startBtn">Start Match</button>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const roomCode = params.get("room");
+
+    const ws = new WebSocket("ws://" + window.location.host);
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+
+    let playerIndex = null;
+    let gameState = null;
+    let vx = 0, jump = false;
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: "join", roomCode }));
+    };
+
+    ws.onmessage = (e) => {
+      const data = JSON.parse(e.data);
+      if (data.type === "joined") {
+        playerIndex = data.playerIndex;
+      }
+      if (data.type === "state") {
+        gameState = data.state;
+      }
+    };
+
+    // controls
+    document.addEventListener("keydown", (e) => {
+      if (playerIndex === 0) { // WASD
+        if (e.key === "a") vx = -4;
+        if (e.key === "d") vx = 4;
+        if (e.key === "w") jump = true;
+      } else if (playerIndex === 1) { // Arrows
+        if (e.key === "ArrowLeft") vx = -4;
+        if (e.key === "ArrowRight") vx = 4;
+        if (e.key === "ArrowUp") jump = true;
+      }
+      ws.send(JSON.stringify({ type: "input", vx, jump }));
+      jump = false;
+    });
+
+    document.addEventListener("keyup", (e) => {
+      if (["a", "d", "ArrowLeft", "ArrowRight"].includes(e.key)) vx = 0;
+      ws.send(JSON.stringify({ type: "input", vx, jump: false }));
+    });
+
+    document.getElementById("startBtn").onclick = () => {
+      ws.send(JSON.stringify({ type: "start" }));
+    };
+
+    function draw() {
+      if (!gameState) return requestAnimationFrame(draw);
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // net
+      ctx.fillStyle = "black";
+      ctx.fillRect(gameState.netX, canvas.height - gameState.netHeight, 4, gameState.netHeight);
+
+      // slimes
+      ctx.fillStyle = "green";
+      ctx.beginPath();
+      ctx.arc(gameState.slimes[0].x, gameState.slimes[0].y, 30, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "red";
+      ctx.beginPath();
+      ctx.arc(gameState.slimes[1].x, gameState.slimes[1].y, 30, 0, Math.PI * 2);
+      ctx.fill();
+
+      // ball
+      ctx.fillStyle = "white";
+      ctx.beginPath();
+      ctx.arc(gameState.ball.x, gameState.ball.y, 12, 0, Math.PI * 2);
+      ctx.fill();
+
+      // score
+      ctx.fillStyle = "black";
+      ctx.font = "20px Arial";
+      ctx.fillText(gameState.slimes[0].score, 50, 30);
+      ctx.fillText(gameState.slimes[1].score, canvas.width - 70, 30);
+
+      // match progress
+      ctx.fillText(`P1 Wins: ${gameState.match.p1Wins}`, 50, 60);
+      ctx.fillText(`P2 Wins: ${gameState.match.p2Wins}`, canvas.width - 150, 60);
+
+      if (!gameState.match.started) {
+        ctx.fillText("Press Start to Begin", canvas.width/2 - 80, canvas.height/2);
+      }
+
+      requestAnimationFrame(draw);
+    }
+    draw();
+  </script>
+</body>
+</html>
